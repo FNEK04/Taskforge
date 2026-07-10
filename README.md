@@ -240,8 +240,9 @@ go run ./cmd/worker
 
 ### Скриншоты
 
-(Дашборд, список задач, DAG-редактор — см. папку `screenshots/`)
-
+![Дашборд](screenshots//mainp.png)
+![Список задач]screenshots//tasks.png)
+![DAG-редактор](screenshots//dag.png)
 ---
 
 ## Тестирование
