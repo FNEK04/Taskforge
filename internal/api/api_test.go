@@ -314,7 +314,7 @@ func TestAuthMissingKeyDefaults(t *testing.T) {
 func TestReplayDLQ_NotFound(t *testing.T) {
 	router, _ := setupTest(t)
 	w := httpDo(t, router, "POST", "/api/v1/dlq/no-such-id/replay", nil)
-	assert.Equal(t, 200, w.Code)
+	assert.Equal(t, 404, w.Code)
 }
 
 func strPtr(s string) *string { return &s }

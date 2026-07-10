@@ -223,6 +223,29 @@ func (d *DB) CreateDAGRun(ctx context.Context, run *internal.DAGRun) error {
 	return err
 }
 
+func (d *DB) GetAllCronJobs(ctx context.Context) ([]*internal.CronJob, error) {
+	rows, err := d.QueryContext(ctx, `SELECT id, tenant_id, type, payload, cron_expr, priority, max_retries, enabled, created_at FROM cron_jobs WHERE enabled=1`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var jobs []*internal.CronJob
+	for rows.Next() {
+		cj := &internal.CronJob{}
+		var payload, createdAt string
+		var enabled int
+		if err := rows.Scan(&cj.ID, &cj.TenantID, &cj.Type, &payload, &cj.CronExpr, &cj.Priority, &cj.MaxRetries, &enabled, &createdAt); err != nil {
+			return nil, err
+		}
+		cj.Payload = []byte(payload)
+		cj.Enabled = enabled == 1
+		parsed, _ := time.Parse(time.RFC3339Nano, createdAt)
+		cj.CreatedAt = parsed
+		jobs = append(jobs, cj)
+	}
+	return jobs, nil
+}
+
 func (d *DB) GetCronJobs(ctx context.Context, tenantID string) ([]*internal.CronJob, error) {
 	rows, err := d.QueryContext(ctx, `SELECT id, tenant_id, type, payload, cron_expr, priority, max_retries, enabled, created_at FROM cron_jobs WHERE tenant_id=? AND enabled=1`, tenantID)
 	if err != nil {
@@ -271,16 +294,29 @@ func (d *DB) ListDLQ(ctx context.Context, tenantID string) ([]*internal.DLQEntry
 	defer rows.Close()
 	var entries []*internal.DLQEntry
 	for rows.Next() {
-		e := &internal.DLQEntry{}
-		var failedAt, replayedAt *string
-		if err := rows.Scan(&e.ID, &e.JobID, &e.TenantID, &e.Reason, &failedAt, &replayedAt); err != nil {
+		e, err := scanDLQEntry(rows.Scan)
+		if err != nil {
 			return nil, err
 		}
-		if failedAt != nil { t, _ := time.Parse(time.RFC3339Nano, *failedAt); e.FailedAt = t }
-		if replayedAt != nil { t, _ := time.Parse(time.RFC3339Nano, *replayedAt); e.ReplayedAt = &t }
 		entries = append(entries, e)
 	}
-	return entries, nil
+	return entries, rows.Err()
+}
+
+func (d *DB) GetDLQEntry(ctx context.Context, id string) (*internal.DLQEntry, error) {
+	row := d.QueryRowContext(ctx, `SELECT id, job_id, tenant_id, reason, failed_at, replayed_at FROM dlq WHERE id=?`, id)
+	return scanDLQEntry(row.Scan)
+}
+
+func scanDLQEntry(scan func(dest ...interface{}) error) (*internal.DLQEntry, error) {
+	e := &internal.DLQEntry{}
+	var failedAt, replayedAt *string
+	if err := scan(&e.ID, &e.JobID, &e.TenantID, &e.Reason, &failedAt, &replayedAt); err != nil {
+		return nil, err
+	}
+	if failedAt != nil { t, _ := time.Parse(time.RFC3339Nano, *failedAt); e.FailedAt = t }
+	if replayedAt != nil { t, _ := time.Parse(time.RFC3339Nano, *replayedAt); e.ReplayedAt = &t }
+	return e, nil
 }
 
 func (d *DB) MarkDLQReplayed(ctx context.Context, id string) error {
@@ -342,6 +378,7 @@ func (d *DB) DequeueJob(ctx context.Context, jobType string) (*internal.Job, err
 		       started_at, completed_at, created_at
 		FROM jobs
 		WHERE status='queued' AND type=? AND (scheduled_at IS NULL OR scheduled_at <= ?)
+		  AND tenant_id NOT IN (SELECT tenant_id FROM tenants WHERE paused=1)
 		ORDER BY priority DESC, created_at ASC
 		LIMIT 1`, jobType, time.Now().Format(time.RFC3339Nano))
 

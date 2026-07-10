@@ -166,6 +166,7 @@ func (w *Worker) processLoop(ctx context.Context, jobTypes []string) {
 		select {
 		case <-w.shutdown:
 			return
+		case <-w.queue.NotifyChan():
 		default:
 		}
 
@@ -173,7 +174,7 @@ func (w *Worker) processLoop(ctx context.Context, jobTypes []string) {
 		for _, jobType := range jobTypes {
 			paused, _ := w.queue.IsPaused(ctx, "")
 			if paused {
-				time.Sleep(100 * time.Millisecond)
+				time.Sleep(300 * time.Millisecond)
 				continue
 			}
 
@@ -194,7 +195,12 @@ func (w *Worker) processLoop(ctx context.Context, jobTypes []string) {
 		}
 
 		if !processed {
-			time.Sleep(50 * time.Millisecond)
+			select {
+			case <-w.shutdown:
+				return
+			case <-w.queue.NotifyChan():
+			case <-time.After(300 * time.Millisecond):
+			}
 		}
 	}
 }

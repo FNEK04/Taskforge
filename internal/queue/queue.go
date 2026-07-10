@@ -27,6 +27,8 @@ type DBIface interface {
 	CreateJob(ctx context.Context, job *internal.Job) error
 	CancelJob(ctx context.Context, jobID string) error
 	GetJob(ctx context.Context, id string) (*internal.Job, error)
+	GetDLQEntry(ctx context.Context, id string) (*internal.DLQEntry, error)
+	MarkDLQReplayed(ctx context.Context, id string) error
 }
 
 type Queue struct {
@@ -125,7 +127,24 @@ func (q *Queue) MoveToDLQ(ctx context.Context, job *internal.Job, reason string)
 }
 
 func (q *Queue) ReplayFromDLQ(ctx context.Context, tenantID, dlqEntryID string) error {
-	q.log.Warn("replay from dlq", zap.String("entry", dlqEntryID))
+	entry, err := q.db.GetDLQEntry(ctx, dlqEntryID)
+	if err != nil {
+		return fmt.Errorf("DLQ entry not found: %w", err)
+	}
+	if entry.TenantID != tenantID {
+		return fmt.Errorf("DLQ entry belongs to a different tenant")
+	}
+	if entry.ReplayedAt != nil {
+		return fmt.Errorf("DLQ entry already replayed")
+	}
+	if err := q.db.RequeueJob(ctx, entry.JobID); err != nil {
+		return fmt.Errorf("failed to requeue job: %w", err)
+	}
+	if err := q.db.MarkDLQReplayed(ctx, dlqEntryID); err != nil {
+		return fmt.Errorf("failed to mark DLQ entry as replayed: %w", err)
+	}
+	q.signal()
+	q.log.Info("replayed DLQ entry", zap.String("entry", dlqEntryID), zap.String("job", entry.JobID))
 	return nil
 }
 

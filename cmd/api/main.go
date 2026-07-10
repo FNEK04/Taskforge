@@ -41,6 +41,11 @@ func main() {
 
 	router := api.NewRouter(q, dagResolver, wsHub, sched, sqlDB, cfg, log)
 
+	sched.Start()
+	if err := sched.LoadAllJobs(context.Background()); err != nil {
+		log.Warn("failed to load cron jobs", zap.Error(err))
+	}
+
 	srv := &http.Server{
 		Addr:         ":" + cfg.HTTP.Port,
 		Handler:      router,

@@ -211,7 +211,6 @@ func (h *Handlers) ReplayDLQ(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
-	h.db.MarkDLQReplayed(c, entryID)
 	c.JSON(http.StatusOK, gin.H{"status": "replayed"})
 }
 

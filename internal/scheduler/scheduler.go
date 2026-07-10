@@ -26,6 +26,7 @@ type Scheduler struct {
 
 type DBIface interface {
 	GetCronJobs(ctx context.Context, tenantID string) ([]*internal.CronJob, error)
+	GetAllCronJobs(ctx context.Context) ([]*internal.CronJob, error)
 	CreateCronJob(ctx context.Context, cj *internal.CronJob) error
 	DeleteCronJob(ctx context.Context, id string) error
 }
@@ -122,6 +123,24 @@ func (s *Scheduler) LoadJobs(ctx context.Context, tenantIDs ...string) error {
 			}
 		}
 	}
+	return nil
+}
+
+func (s *Scheduler) LoadAllJobs(ctx context.Context) error {
+	jobs, err := s.db.GetAllCronJobs(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to load all cron jobs: %w", err)
+	}
+	for _, cj := range jobs {
+		if cj.Enabled {
+			if err := s.AddJob(cj); err != nil {
+				s.log.Error("failed to add cron job",
+					zap.String("cron_id", cj.ID),
+					zap.Error(err))
+			}
+		}
+	}
+	s.log.Info("loaded cron jobs", zap.Int("count", len(jobs)))
 	return nil
 }
 
