@@ -141,6 +141,15 @@ func (d *DB) SetTenantPaused(ctx context.Context, tenantID string, paused bool) 
 	return err
 }
 
+func (d *DB) GetTenantPaused(ctx context.Context, tenantID string) (bool, error) {
+	var paused int
+	err := d.QueryRowContext(ctx, `SELECT paused FROM tenants WHERE id=?`, tenantID).Scan(&paused)
+	if err != nil {
+		return false, err
+	}
+	return paused == 1, nil
+}
+
 func (d *DB) CancelJob(ctx context.Context, jobID string) error {
 	res, err := d.ExecContext(ctx, `UPDATE jobs SET status='cancelled', updated_at=? WHERE id=? AND status NOT IN ('completed','cancelled','dlq')`,
 		time.Now().Format(time.RFC3339Nano), jobID)

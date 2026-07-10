@@ -1,6 +1,10 @@
 package api
 
 import (
+	"net/http"
+	"os"
+	"path/filepath"
+
 	"github.com/gin-gonic/gin"
 	"github.com/taskforge/internal"
 	"github.com/taskforge/internal/dag"
@@ -70,6 +74,20 @@ func NewRouter(
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
+
+	distDir := "./frontend/dist"
+	if _, err := os.Stat(distDir); err == nil {
+		r.StaticFS("/assets", gin.Dir(filepath.Join(distDir, "assets"), false))
+		r.StaticFile("/favicon.png", filepath.Join(distDir, "favicon.png"))
+
+		r.NoRoute(func(c *gin.Context) {
+			if c.Request.Method == "GET" {
+				c.File(filepath.Join(distDir, "index.html"))
+				return
+			}
+			c.Status(http.StatusNotFound)
+		})
+	}
 
 	return r
 }

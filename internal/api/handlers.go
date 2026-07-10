@@ -44,6 +44,7 @@ type DBIface interface {
 	ListDLQ(ctx context.Context, tenantID string) ([]*internal.DLQEntry, error)
 	MarkDLQReplayed(ctx context.Context, id string) error
 	SetTenantPaused(ctx context.Context, tenantID string, paused bool) error
+	GetTenantPaused(ctx context.Context, tenantID string) (bool, error)
 	CancelJob(ctx context.Context, jobID string) error
 	RequeueJob(ctx context.Context, jobID string) error
 }
@@ -159,7 +160,7 @@ func (h *Handlers) QueueStatus(c *gin.Context) {
 	tenantID := getTenantID(c)
 	jobType := c.Query("type")
 
-	paused, _ := h.queue.IsPaused(c, tenantID)
+	paused, _ := h.db.GetTenantPaused(c, tenantID)
 	streamLen, _ := h.queue.StreamLen(c, tenantID, jobType)
 	pendingCount, _ := h.queue.PendingCount(c, tenantID, jobType)
 
@@ -173,20 +174,12 @@ func (h *Handlers) QueueStatus(c *gin.Context) {
 
 func (h *Handlers) PauseQueue(c *gin.Context) {
 	tenantID := getTenantID(c)
-	if err := h.queue.Pause(c, tenantID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to pause queue"})
-		return
-	}
 	h.db.SetTenantPaused(c, tenantID, true)
 	c.JSON(http.StatusOK, gin.H{"status": "paused"})
 }
 
 func (h *Handlers) ResumeQueue(c *gin.Context) {
 	tenantID := getTenantID(c)
-	if err := h.queue.Resume(c, tenantID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to resume queue"})
-		return
-	}
 	h.db.SetTenantPaused(c, tenantID, false)
 	c.JSON(http.StatusOK, gin.H{"status": "resumed"})
 }

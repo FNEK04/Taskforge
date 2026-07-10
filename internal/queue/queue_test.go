@@ -113,17 +113,22 @@ func TestNack_RequeuesJob(t *testing.T) {
 }
 
 func TestPauseResume(t *testing.T) {
-	q, _ := newTestQueue(t)
+	_, d := newTestQueue(t)
 
-	paused, _ := q.IsPaused(context.Background(), "default")
+	require.NoError(t, d.EnsureTenant(context.Background(), "default"))
+
+	paused, err := d.GetTenantPaused(context.Background(), "default")
+	require.NoError(t, err)
 	assert.False(t, paused)
 
-	require.NoError(t, q.Pause(context.Background(), "default"))
-	paused, _ = q.IsPaused(context.Background(), "default")
+	require.NoError(t, d.SetTenantPaused(context.Background(), "default", true))
+	paused, err = d.GetTenantPaused(context.Background(), "default")
+	require.NoError(t, err)
 	assert.True(t, paused)
 
-	require.NoError(t, q.Resume(context.Background(), "default"))
-	paused, _ = q.IsPaused(context.Background(), "default")
+	require.NoError(t, d.SetTenantPaused(context.Background(), "default", false))
+	paused, err = d.GetTenantPaused(context.Background(), "default")
+	require.NoError(t, err)
 	assert.False(t, paused)
 }
 

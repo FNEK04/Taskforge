@@ -3,7 +3,6 @@ package queue
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -37,8 +36,6 @@ type Queue struct {
 	log    *zap.Logger
 	notify chan struct{}
 
-	mu       sync.RWMutex
-	paused   map[string]bool
 	maxLen   int
 
 	stopCh   chan struct{}
@@ -50,7 +47,6 @@ func New(db DBIface, maxLen int, log *zap.Logger) *Queue {
 		lm:     NewLockManager(30 * time.Second),
 		log:    log,
 		notify: make(chan struct{}, 64),
-		paused: make(map[string]bool),
 		maxLen: maxLen,
 		stopCh: make(chan struct{}),
 	}
@@ -161,26 +157,6 @@ func (q *Queue) ClaimStale(ctx context.Context, workerID string, _ time.Duration
 		q.lm.Release(ctx, id, workerID)
 	}
 	return len(ids), nil
-}
-
-func (q *Queue) Pause(ctx context.Context, tenantID string) error {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-	q.paused[tenantID] = true
-	return nil
-}
-
-func (q *Queue) Resume(ctx context.Context, tenantID string) error {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-	delete(q.paused, tenantID)
-	return nil
-}
-
-func (q *Queue) IsPaused(ctx context.Context, tenantID string) (bool, error) {
-	q.mu.RLock()
-	defer q.mu.RUnlock()
-	return q.paused[tenantID], nil
 }
 
 func (q *Queue) PendingCount(ctx context.Context, tenantID, jobType string) (int64, error) {

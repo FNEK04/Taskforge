@@ -172,12 +172,6 @@ func (w *Worker) processLoop(ctx context.Context, jobTypes []string) {
 
 		processed := false
 		for _, jobType := range jobTypes {
-			paused, _ := w.queue.IsPaused(ctx, "")
-			if paused {
-				time.Sleep(300 * time.Millisecond)
-				continue
-			}
-
 			job, err := w.queue.Dequeue(ctx, w.id, "", jobType, 0)
 			if err != nil {
 				continue
