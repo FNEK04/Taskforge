@@ -1,3 +1,4 @@
+![Uploading mainp.png…]()
 # TaskForge — распределённая очередь задач с DAG-зависимостями
 
 **TaskForge** — это лёгкая, высокопроизводительная очередь задач на Go с веб-интерфейсом на Svelte. Предназначена для управления асинхронными задачами с поддержкой графов зависимостей (DAG), отложенного запуска, повторных попыток, Dead Letter Queue и многоарендности.
@@ -240,11 +241,11 @@ go run ./cmd/worker
 
 ### Скриншоты
 
-[Дашборд](screenshots/mainp.png)
+![Дашборд](screenshots/mainp.png)
 
-[Список задач](screenshots/tasks.png)
+![Список задач](screenshots/tasks.png)
 
-[DAG-редактор](screenshots/dag.png)
+![DAG-редактор](screenshots/dag.png)
 
 ---
 
