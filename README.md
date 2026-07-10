@@ -240,11 +240,11 @@ go run ./cmd/worker
 
 ### Скриншоты
 
-[Дашборд](screenshots//mainp.png)
+[Дашборд](screenshots/mainp.png)
 
-[Список задач](screenshots//tasks.png)
+[Список задач](screenshots/tasks.png)
 
-[DAG-редактор](screenshots//dag.png)
+[DAG-редактор](screenshots/dag.png)
 
 ---
 
